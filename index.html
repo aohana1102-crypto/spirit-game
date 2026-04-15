@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0a0a1a">
+  <title>精霊育成</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;700&family=Shippori+Mincho:wght@400;700&display=swap');
+
+    :root {
+      --bg: #0a0a1a;
+      --bg2: #0d0d22;
+      --orb-color: #7eb8f7;
+      --orb-glow: #4a90e2;
+      --accent: #c9e8ff;
+      --text: #d0e8ff;
+      --text-dim: #5a7a99;
+      --ring: rgba(126, 184, 247, 0.15);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Zen Kaku Gothic New', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* 背景の星 */
+    .stars {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+    .star {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: white;
+      border-radius: 50%;
+      animation: twinkle var(--d, 3s) infinite;
+      opacity: var(--o, 0.4);
+    }
+    @keyframes twinkle {
+      0%, 100% { opacity: var(--o, 0.4); }
+      50% { opacity: 0.1; }
+    }
+
+    /* メインコンテナ */
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 40px;
+      padding: 40px 20px;
+      z-index: 1;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    /* タイトル */
+    .title {
+      font-family: 'Shippori Mincho', serif;
+      font-size: 13px;
+      letter-spacing: 0.5em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    /* 精霊の名前 */
+    .spirit-name {
+      font-family: 'Shippori Mincho', serif;
+      font-size: 28px;
+      letter-spacing: 0.15em;
+      color: var(--accent);
+      text-align: center;
+      min-height: 40px;
+      transition: all 0.8s ease;
+    }
+
+    /* 精霊オーブ */
+    .spirit-stage {
+      position: relative;
+      width: 220px;
+      height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid var(--ring);
+      animation: rotate var(--rs, 8s) linear infinite;
+    }
+    .ring:nth-child(1) { width: 100%; height: 100%; --rs: 12s; }
+    .ring:nth-child(2) { width: 80%; height: 80%; --rs: 8s; animation-direction: reverse; }
+    .ring:nth-child(3) { width: 60%; height: 60%; --rs: 5s; }
+
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .orb {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, var(--orb-color), var(--orb-glow) 60%, #1a1a3a);
+      box-shadow:
+        0 0 30px var(--orb-glow),
+        0 0 60px rgba(74, 144, 226, 0.3),
+        inset 0 0 20px rgba(255,255,255,0.1);
+      transition: all 0.5s ease;
+      animation: breathe 3s ease-in-out infinite;
+      cursor: pointer;
+    }
+
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 30px var(--orb-glow), 0 0 60px rgba(74,144,226,0.3), inset 0 0 20px rgba(255,255,255,0.1); }
+      50% { transform: scale(1.05); box-shadow: 0 0 50px var(--orb-glow), 0 0 90px rgba(74,144,226,0.4), inset 0 0 30px rgba(255,255,255,0.15); }
+    }
+
+    .orb.listening {
+      animation: pulse 0.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(var(--orb-scale, 1.08)); }
+    }
+
+    /* 感情インジケーター */
+    .indicators {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .indicator {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(126,184,247,0.1);
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .indicator-label {
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: var(--text-dim);
+    }
+
+    .indicator-bar {
+      height: 3px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .indicator-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+      background: linear-gradient(90deg, var(--bar-from), var(--bar-to));
+    }
+
+    .indicator:nth-child(1) .indicator-fill { --bar-from: #7eb8f7; --bar-to: #a8d4ff; }
+    .indicator:nth-child(2) .indicator-fill { --bar-from: #f7c77e; --bar-to: #ffd9a0; }
+    .indicator:nth-child(3) .indicator-fill { --bar-from: #7ef7b8; --bar-to: #a0ffcf; }
+    .indicator:nth-child(4) .indicator-fill { --bar-from: #f77eb8; --bar-to: #ffa0d4; }
+
+    .indicator-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    /* ボタン */
+    .btn {
+      position: relative;
+      background: transparent;
+      border: 1px solid rgba(126,184,247,0.3);
+      color: var(--text);
+      font-family: 'Zen Kaku Gothic New', sans-serif;
+      font-size: 14px;
+      letter-spacing: 0.2em;
+      padding: 16px 48px;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(126,184,247,0.1), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .btn:hover::before { opacity: 1; }
+    .btn:hover { border-color: rgba(126,184,247,0.6); box-shadow: 0 0 20px rgba(126,184,247,0.2); }
+
+    .btn.active {
+      border-color: rgba(247,126,126,0.6);
+      box-shadow: 0 0 20px rgba(247,126,126,0.3);
+      color: #ffb0b0;
+    }
+
+    /* メッセージ */
+    .message {
+      font-size: 13px;
+      color: var(--text-dim);
+      text-align: center;
+      letter-spacing: 0.05em;
+      line-height: 1.8;
+      min-height: 48px;
+      transition: all 0.5s ease;
+    }
+
+    /* 進化エフェクト */
+    .evolve-flash {
+      position: fixed;
+      inset: 0;
+      background: white;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .evolve-flash.active {
+      animation: flash 0.8s ease;
+    }
+
+    @keyframes flash {
+      0% { opacity: 0; }
+      20% { opacity: 0.8; }
+      100% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="stars" id="stars"></div>
+<div class="evolve-flash" id="evolveFlash"></div>
+
+<div class="container">
+  <div class="title">精霊育成</div>
+
+  <div class="spirit-name" id="spiritName">ひかりのたまご</div>
+
+  <div class="spirit-stage">
+    <div class="ring"></div>
+    <div class="ring"></div>
+    <div class="ring"></div>
+    <div class="orb" id="orb"></div>
+  </div>
+
+  <div class="indicators">
+    <div class="indicator">
+      <div class="indicator-label">たかさ</div>
+      <div class="indicator-bar"><div class="indicator-fill" id="bar-pitch" style="width:0%"></div></div>
+      <div class="indicator-value" id="val-pitch">—</div>
+    </div>
+    <div class="indicator">
+      <div class="indicator-label">おおきさ</div>
+      <div class="indicator-bar"><div class="indicator-fill" id="bar-volume" style="width:0%"></div></div>
+      <div class="indicator-value" id="val-volume">—</div>
+    </div>
+    <div class="indicator">
+      <div class="indicator-label">つよさ</div>
+      <div class="indicator-bar"><div class="indicator-fill" id="bar-strength" style="width:0%"></div></div>
+      <div class="indicator-value" id="val-strength">—</div>
+    </div>
+    <div class="indicator">
+      <div class="indicator-label">やさしさ</div>
+      <div class="indicator-bar"><div class="indicator-fill" id="bar-gentle" style="width:0%"></div></div>
+      <div class="indicator-value" id="val-gentle">—</div>
+    </div>
+  </div>
+
+  <button class="btn" id="mainBtn" onclick="toggleListening()">うたう</button>
+
+  <div class="message" id="message">オーブにさわると、うたをきかせてくれる</div>
+</div>
+
+<script>
+// ---- 星を生成 ----
+const starsEl = document.getElementById('stars');
+for (let i = 0; i < 80; i++) {
+  const s = document.createElement('div');
+  s.className = 'star';
+  s.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${2+Math.random()*4}s;--o:${0.2+Math.random()*0.5};animation-delay:${Math.random()*4}s`;
+  starsEl.appendChild(s);
+}
+
+// ---- 精霊データ ----
+const SPIRITS = [
+  { name: 'ひかりのたまご',  color: '#7eb8f7', glow: '#4a90e2', threshold: 0 },
+  { name: 'ルミエル',        color: '#a8f7d4', glow: '#2ec490', threshold: 30 },
+  { name: 'アウローラ',      color: '#f7d4a8', glow: '#e07820', threshold: 80 },
+  { name: 'ソルヴェイグ',    color: '#f7a8f7', glow: '#b030c0', threshold: 180 },
+  { name: 'エテルニア',      color: '#ffffa8', glow: '#e0c000', threshold: 400 },
+];
+
+// ---- 状態 ----
+let isListening = false;
+let audioCtx = null;
+let analyser = null;
+let source = null;
+let stream = null;
+let animFrame = null;
+
+let stats = { pitch: 0, volume: 0, strength: 0, gentle: 0 };
+let totalScore = 0;
+let currentSpirit = 0;
+let smoothVolume = 0;
+
+// ---- UI要素 ----
+const orb = document.getElementById('orb');
+const spiritName = document.getElementById('spiritName');
+const mainBtn = document.getElementById('mainBtn');
+const message = document.getElementById('message');
+const evolveFlash = document.getElementById('evolveFlash');
+
+// オーブクリックでも起動
+orb.addEventListener('click', toggleListening);
+
+// ---- 録音ON/OFF ----
+async function toggleListening() {
+  if (isListening) {
+    stopListening();
+  } else {
+    await startListening();
+  }
+}
+
+async function startListening() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    source = audioCtx.createMediaStreamSource(stream);
+    source.connect(analyser);
+
+    isListening = true;
+    orb.classList.add('listening');
+    mainBtn.textContent = 'やめる';
+    mainBtn.classList.add('active');
+    message.textContent = 'きいてるよ…うたってみて！';
+
+    analyze();
+  } catch(e) {
+    message.textContent = 'マイクをつかってもいいよ、ってきょかしてね';
+  }
+}
+
+function stopListening() {
+  isListening = false;
+  if (animFrame) cancelAnimationFrame(animFrame);
+  if (source) source.disconnect();
+  if (audioCtx) audioCtx.close();
+  if (stream) stream.getTracks().forEach(t => t.stop());
+
+  orb.classList.remove('listening');
+  mainBtn.textContent = 'うたう';
+  mainBtn.classList.remove('active');
+  orb.style.removeProperty('--orb-scale');
+  message.textContent = 'またうたってね！精霊が喜んでたよ';
+
+  updateBars(0, 0, 0, 0);
+}
+
+// ---- 音声解析 ----
+function analyze() {
+  if (!isListening) return;
+  animFrame = requestAnimationFrame(analyze);
+
+  const bufferLength = analyser.frequencyBinCount;
+  const dataArray = new Uint8Array(bufferLength);
+  analyser.getByteFrequencyData(dataArray);
+
+  const timeArray = new Float32Array(analyser.fftSize);
+  analyser.getFloatTimeDomainData(timeArray);
+
+  // 音量（RMS）
+  let rms = 0;
+  for (let i = 0; i < timeArray.length; i++) rms += timeArray[i] * timeArray[i];
+  rms = Math.sqrt(rms / timeArray.length);
+  smoothVolume = smoothVolume * 0.85 + rms * 0.15;
+  const volume = Math.min(smoothVolume * 6, 1);
+
+  // ピッチ（最大周波数帯域）
+  let maxVal = 0, maxIdx = 0;
+  for (let i = 1; i < bufferLength * 0.5; i++) {
+    if (dataArray[i] > maxVal) { maxVal = dataArray[i]; maxIdx = i; }
+  }
+  const sampleRate = audioCtx.sampleRate;
+  const pitch = (maxIdx * sampleRate / analyser.fftSize);
+  const pitchNorm = Math.min(pitch / 1500, 1);
+
+  // 強さ（中〜高周波エネルギー）
+  let highEnergy = 0;
+  for (let i = Math.floor(bufferLength * 0.3); i < Math.floor(bufferLength * 0.8); i++) {
+    highEnergy += dataArray[i];
+  }
+  const strength = Math.min(highEnergy / (bufferLength * 0.5 * 100), 1);
+
+  // やさしさ（低〜中周波の安定さ）= 1 - 高周波の暴れ具合
+  let lowEnergy = 0;
+  for (let i = 0; i < Math.floor(bufferLength * 0.2); i++) {
+    lowEnergy += dataArray[i];
+  }
+  const gentle = volume > 0.05 ? Math.min(lowEnergy / (bufferLength * 0.2 * 120), 1) : 0;
+
+  // スコア加算（声が出てるとき）
+  if (volume > 0.05) {
+    totalScore += (volume + pitchNorm + strength + gentle) * 0.5;
+    checkEvolution();
+  }
+
+  // オーブスケール変化
+  orb.style.setProperty('--orb-scale', (1.05 + volume * 0.3).toFixed(3));
+
+  updateBars(pitchNorm, volume, strength, gentle);
+}
+
+// ---- バー更新 ----
+function updateBars(pitch, volume, strength, gentle) {
+  const set = (id, val, barId) => {
+    document.getElementById(id).textContent = val > 0.05 ? levelLabel(val) : '—';
+    document.getElementById(barId).style.width = (val * 100).toFixed(1) + '%';
+  };
+  set('val-pitch', pitch, 'bar-pitch');
+  set('val-volume', volume, 'bar-volume');
+  set('val-strength', strength, 'bar-strength');
+  set('val-gentle', gentle, 'bar-gentle');
+}
+
+function levelLabel(v) {
+  if (v < 0.2) return '★';
+  if (v < 0.4) return '★★';
+  if (v < 0.6) return '★★★';
+  if (v < 0.8) return '★★★★';
+  return '★★★★★';
+}
+
+// ---- 進化チェック ----
+function checkEvolution() {
+  for (let i = SPIRITS.length - 1; i >= 0; i--) {
+    if (totalScore >= SPIRITS[i].threshold && currentSpirit < i) {
+      evolve(i);
+      break;
+    }
+  }
+}
+
+function evolve(idx) {
+  currentSpirit = idx;
+  const s = SPIRITS[idx];
+
+  // フラッシュ
+  evolveFlash.classList.remove('active');
+  void evolveFlash.offsetWidth;
+  evolveFlash.classList.add('active');
+
+  // 色変更
+  document.documentElement.style.setProperty('--orb-color', s.color);
+  document.documentElement.style.setProperty('--orb-glow', s.glow);
+
+  // 名前変更
+  spiritName.textContent = s.name;
+  message.textContent = `${s.name} に　なった！`;
+}
+</script>
+</body>
+</html>

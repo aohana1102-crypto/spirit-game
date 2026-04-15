@@ -303,6 +303,8 @@
 </div>
 
 <script>
+window.onload = function() {
+
 // ---- 星を生成 ----
 const starsEl = document.getElementById('stars');
 for (let i = 0; i < 80; i++) {
@@ -347,8 +349,6 @@ function restoreSpirit() {
     }
   }
 }
-restoreSpirit();
-
 // ---- UI要素 ----
 const orb = document.getElementById('orb');
 const spiritName = document.getElementById('spiritName');
@@ -358,6 +358,8 @@ const evolveFlash = document.getElementById('evolveFlash');
 
 // オーブクリックでも起動
 orb.addEventListener('click', toggleListening);
+
+restoreSpirit();
 
 // ---- 録音ON/OFF ----
 async function toggleListening() {
@@ -519,6 +521,8 @@ function resetSpirit() {
   spiritName.textContent = s.name;
   message.textContent = `${s.name} に　なった！`;
 }
+
+}; // window.onload
 </script>
 </body>
 </html>

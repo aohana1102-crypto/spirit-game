@@ -297,6 +297,7 @@
   </div>
 
   <button class="btn" id="mainBtn" onclick="toggleListening()">うたう</button>
+  <button class="btn" style="font-size:11px; padding:10px 24px; opacity:0.5;" onclick="resetSpirit()">はじめからそだてる</button>
 
   <div class="message" id="message">オーブにさわると、うたをきかせてくれる</div>
 </div>
@@ -314,10 +315,10 @@ for (let i = 0; i < 80; i++) {
 // ---- 精霊データ ----
 const SPIRITS = [
   { name: 'ひかりのたまご',  color: '#7eb8f7', glow: '#4a90e2', threshold: 0 },
-  { name: 'ルミエル',        color: '#a8f7d4', glow: '#2ec490', threshold: 150 },
-  { name: 'アウローラ',      color: '#f7d4a8', glow: '#e07820', threshold: 400 },
-  { name: 'ソルヴェイグ',    color: '#f7a8f7', glow: '#b030c0', threshold: 900 },
-  { name: 'エテルニア',      color: '#ffffa8', glow: '#e0c000', threshold: 2000 },
+  { name: 'ルミエル',        color: '#a8f7d4', glow: '#2ec490', threshold: 1500 },
+  { name: 'アウローラ',      color: '#f7d4a8', glow: '#e07820', threshold: 4000 },
+  { name: 'ソルヴェイグ',    color: '#f7a8f7', glow: '#b030c0', threshold: 9000 },
+  { name: 'エテルニア',      color: '#ffffa8', glow: '#e0c000', threshold: 20000 },
 ];
 
 // ---- 状態 ----
@@ -329,9 +330,24 @@ let stream = null;
 let animFrame = null;
 
 let stats = { pitch: 0, volume: 0, strength: 0, gentle: 0 };
-let totalScore = 0;
+let totalScore = parseFloat(localStorage.getItem('spiritScore') || '0');
 let currentSpirit = 0;
 let smoothVolume = 0;
+
+// スコアから精霊を復元
+function restoreSpirit() {
+  for (let i = SPIRITS.length - 1; i >= 0; i--) {
+    if (totalScore >= SPIRITS[i].threshold) {
+      currentSpirit = i;
+      const s = SPIRITS[i];
+      document.documentElement.style.setProperty('--orb-color', s.color);
+      document.documentElement.style.setProperty('--orb-glow', s.glow);
+      document.getElementById('spiritName').textContent = s.name;
+      break;
+    }
+  }
+}
+restoreSpirit();
 
 // ---- UI要素 ----
 const orb = document.getElementById('orb');
@@ -434,6 +450,7 @@ function analyze() {
   // スコア加算（声が出てるとき）
   if (volume > 0.05) {
     totalScore += (volume + pitchNorm + strength + gentle) * 0.5;
+    localStorage.setItem('spiritScore', totalScore.toString());
     checkEvolution();
   }
 
@@ -473,7 +490,19 @@ function checkEvolution() {
   }
 }
 
-function evolve(idx) {
+// ---- リセット ----
+function resetSpirit() {
+  if (!confirm('精霊をはじめからそだてなおす？')) return;
+  totalScore = 0;
+  currentSpirit = 0;
+  localStorage.removeItem('spiritScore');
+  const s = SPIRITS[0];
+  document.documentElement.style.setProperty('--orb-color', s.color);
+  document.documentElement.style.setProperty('--orb-glow', s.glow);
+  document.getElementById('spiritName').textContent = s.name;
+  message.textContent = 'たまごにもどった。またうたってね！';
+}
+
   currentSpirit = idx;
   const s = SPIRITS[idx];
 

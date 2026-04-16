@@ -243,6 +243,26 @@
       transition: all 0.5s ease;
     }
 
+    /* ドットキャラクター */
+    .char-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    #charCanvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      width: 96px;
+      height: 96px;
+    }
+    .char-label {
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: var(--text-dim);
+      text-align: center;
+    }
+
     /* 進化エフェクト */
     .evolve-flash {
       position: fixed;
@@ -279,6 +299,11 @@
     <div class="ring"></div>
     <div class="ring"></div>
     <div class="orb" id="orb"></div>
+  </div>
+
+  <div class="char-stage">
+    <canvas id="charCanvas" width="48" height="48"></canvas>
+    <div class="char-label" id="charLabel">たまご</div>
   </div>
 
   <div class="indicators">
@@ -344,6 +369,146 @@ let totalScore = parseFloat(localStorage.getItem('spiritScore') || '0');
 let currentSpirit = 0;
 let smoothVolume = 0;
 
+// ---- ドットキャラクター ----
+const CS = 4; // px per dot
+const CGRID = 12;
+
+const CHAR_NAMES = ['たまご','ひかりタイプ','おおきさタイプ','つよさタイプ','やさしさタイプ'];
+const CHAR_PAL = {
+  egg:     {b:'#c0d8f0',h:'#e0f0ff',s:'#6080aa',e:'#182840',p:'#e8f4ff'},
+  fairy:   {b:'#b0ccff',h:'#d8eaff',s:'#4068b8',e:'#102040',p:'#e0efff',a:'#ffcc50',w:'#c8e0ff'},
+  beast:   {b:'#ffb840',h:'#ffe090',s:'#aa6010',e:'#280c00',p:'#fff0a0',a:'#ff5010'},
+  warrior: {b:'#ff6868',h:'#ffaaaa',s:'#aa0808',e:'#280000',p:'#ffe0e0',a:'#ff1010'},
+  flora:   {b:'#ff98b8',h:'#ffc8dc',s:'#aa4060',e:'#381828',p:'#ffe0ec',a:'#60b860'},
+};
+const CHAR_KEYS = ['egg','fairy','beast','warrior','flora'];
+
+let charType = 0;
+let statAccum = JSON.parse(localStorage.getItem('statAccum') || '{"pitch":0,"volume":0,"strength":0,"gentle":0}');
+
+function updateCharType() {
+  if (totalScore < 1500) { charType = 0; return; }
+  const sa = statAccum;
+  const mx = Math.max(sa.pitch, sa.volume, sa.strength, sa.gentle);
+  if (mx === 0) { charType = 0; return; }
+  if (sa.pitch >= mx) charType = 1;
+  else if (sa.volume >= mx) charType = 2;
+  else if (sa.strength >= mx) charType = 3;
+  else charType = 4;
+}
+
+function drawEgg(dot, bob) {
+  const y = 2 + bob;
+  const rows = [[4,7],[3,8],[2,9],[2,9],[2,9],[2,9],[3,8],[4,7]];
+  for (let r = 0; r < rows.length; r++) {
+    const [c0,c1] = rows[r];
+    for (let c = c0; c <= c1; c++) {
+      dot(c, y+r, (r<3&&c<6)?'h':(r>5&&c>6)?'s':'b');
+    }
+  }
+  dot(4,y+3,'e'); dot(7,y+3,'e');
+  dot(5,y+2,'p'); dot(8,y+2,'p');
+}
+
+function drawFairy(dot, bob, t) {
+  const y = 1 + bob;
+  const flap = Math.floor(t/200)%2;
+  dot(4,y,'a'); dot(5,y-1+flap,'a'); dot(6,y-1+flap,'a'); dot(7,y,'a');
+  const wy = flap ? y+2 : y+3;
+  dot(0,wy,'w'); dot(1,wy,'w'); dot(1,wy+1,'w');
+  dot(11,wy,'w'); dot(10,wy,'w'); dot(10,wy+1,'w');
+  const hr = [[4,7],[3,8],[3,8],[4,7]];
+  for (let r=0;r<4;r++) {
+    const [c0,c1]=hr[r];
+    for (let c=c0;c<=c1;c++) dot(c,y+1+r,(r===0&&c<=5)?'h':'b');
+  }
+  dot(4,y+3,'e'); dot(5,y+3,'e'); dot(7,y+3,'e'); dot(6,y+3,'e');
+  dot(5,y+2,'p'); dot(7,y+2,'p');
+  dot(5,y+5,'b'); dot(6,y+5,'b');
+  dot(4,y+6,'b'); dot(5,y+6,'b'); dot(6,y+6,'b'); dot(7,y+6,'b');
+  dot(5,y+7,'b'); dot(6,y+7,'b');
+}
+
+function drawBeast(dot, bob, t) {
+  const y = 1 + bob;
+  const puff = Math.floor(t/400)%2;
+  const rows = puff
+    ? [[3,8],[2,9],[1,10],[1,10],[1,10],[1,10],[2,9],[3,8]]
+    : [[4,7],[3,8],[2,9],[2,9],[2,9],[2,9],[3,8],[4,7]];
+  for (let r=0;r<rows.length;r++) {
+    const [c0,c1]=rows[r];
+    for (let c=c0;c<=c1;c++) {
+      dot(c,y+r,(r<2&&c<(c0+c1)/2)?'h':(r>5&&c>(c0+c1)/2)?'s':'b');
+    }
+  }
+  dot(3,y+3,'e'); dot(4,y+3,'e'); dot(3,y+4,'e'); dot(4,y+4,'e');
+  dot(7,y+3,'e'); dot(8,y+3,'e'); dot(7,y+4,'e'); dot(8,y+4,'e');
+  dot(4,y+3,'p'); dot(8,y+3,'p');
+  dot(3,y+2,'a'); dot(4,y+2,'a'); dot(7,y+2,'a'); dot(8,y+2,'a');
+  for (let c=4;c<=7;c++) dot(c,y+6,'h');
+}
+
+function drawWarrior(dot, bob, t) {
+  const y = 1 + bob;
+  dot(2,y,'a'); dot(3,y,'a'); dot(4,y,'a');
+  dot(5,y-1,'a'); dot(6,y-1,'a');
+  dot(7,y,'a'); dot(8,y,'a'); dot(9,y,'a');
+  const rows = [[3,8],[2,9],[2,9],[2,9],[2,9],[2,9],[3,8],[4,7]];
+  for (let r=0;r<rows.length;r++) {
+    const [c0,c1]=rows[r];
+    for (let c=c0;c<=c1;c++) dot(c,y+1+r,(r<1&&c<=5)?'h':'b');
+    dot(c0,y+1+r,'s'); dot(c1,y+1+r,'s');
+  }
+  dot(3,y+3,'e'); dot(4,y+3,'e'); dot(4,y+2,'e');
+  dot(8,y+3,'e'); dot(7,y+3,'e'); dot(7,y+2,'e');
+  dot(3,y+4,'e'); dot(4,y+4,'e'); dot(7,y+4,'e'); dot(8,y+4,'e');
+  dot(5,y+5,'a'); dot(6,y+5,'a');
+}
+
+function drawFlora(dot, bob, t) {
+  const y = 2 + bob;
+  const sway = Math.floor(t/800)%2;
+  dot(1,y+1,'a'); dot(2,y,'a'); dot(10,y+1,'a'); dot(9,y,'a');
+  dot(1,y+5,'a'); dot(2,y+6,'a'); dot(10,y+5,'a'); dot(9,y+6,'a');
+  if (sway) { dot(5,y-1,'a'); dot(6,y-1,'a'); }
+  const rows = [[4,7],[3,8],[2,9],[2,9],[2,9],[2,9],[3,8],[4,7]];
+  for (let r=0;r<rows.length;r++) {
+    const [c0,c1]=rows[r];
+    for (let c=c0;c<=c1;c++) {
+      dot(c,y+r,(r<2&&c<6)?'h':(r>5&&c>6)?'s':'b');
+    }
+  }
+  dot(3,y+3,'e'); dot(4,y+3,'e'); dot(4,y+2,'e');
+  dot(8,y+3,'e'); dot(7,y+3,'e'); dot(7,y+2,'e');
+  dot(5,y+2,'p'); dot(8,y+2,'p');
+  dot(4,y+5,'e'); dot(5,y+6,'e'); dot(6,y+6,'e'); dot(7,y+5,'e');
+}
+
+function renderChar() {
+  const canvas = document.getElementById('charCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const t = Date.now();
+  const bob = isListening ? (Math.floor(t/120)%2) : (Math.floor(t/600)%2);
+  const pal = CHAR_PAL[CHAR_KEYS[charType]];
+  const dot = (x, y, k) => {
+    if (!k || !pal[k] || x<0 || x>=CGRID || y<0 || y>=CGRID) return;
+    ctx.fillStyle = pal[k];
+    ctx.fillRect(x*CS, y*CS, CS, CS);
+  };
+  if (charType===0) drawEgg(dot,bob);
+  else if (charType===1) drawFairy(dot,bob,t);
+  else if (charType===2) drawBeast(dot,bob,t);
+  else if (charType===3) drawWarrior(dot,bob,t);
+  else drawFlora(dot,bob,t);
+}
+
+(function charLoop() {
+  renderChar();
+  requestAnimationFrame(charLoop);
+})();
+
 // スコアから精霊を復元
 function restoreSpirit() {
   for (let i = SPIRITS.length - 1; i >= 0; i--) {
@@ -368,6 +533,8 @@ const evolveFlash = document.getElementById('evolveFlash');
 orb.addEventListener('click', toggleListening);
 
 restoreSpirit();
+updateCharType();
+document.getElementById('charLabel').textContent = CHAR_NAMES[charType];
 
 // ---- 録音ON/OFF ----
 async function toggleListening() {
@@ -470,7 +637,14 @@ function analyze() {
   // スコア加算（声が出てるとき）
   if (volume > 0.05) {
     totalScore += (volume + pitchNorm + strength + gentle) * 0.5;
+    statAccum.pitch += pitchNorm;
+    statAccum.volume += volume;
+    statAccum.strength += strength;
+    statAccum.gentle += gentle;
     localStorage.setItem('spiritScore', totalScore.toString());
+    localStorage.setItem('statAccum', JSON.stringify(statAccum));
+    updateCharType();
+    document.getElementById('charLabel').textContent = CHAR_NAMES[charType];
     checkEvolution();
   }
 
@@ -516,6 +690,10 @@ function resetSpirit() {
   totalScore = 0;
   currentSpirit = 0;
   localStorage.removeItem('spiritScore');
+  localStorage.removeItem('statAccum');
+  statAccum = {pitch:0,volume:0,strength:0,gentle:0};
+  charType = 0;
+  document.getElementById('charLabel').textContent = CHAR_NAMES[0];
   const s = SPIRITS[0];
   document.documentElement.style.setProperty('--orb-color', s.color);
   document.documentElement.style.setProperty('--orb-glow', s.glow);

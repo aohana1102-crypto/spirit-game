@@ -27,11 +27,13 @@
       color: var(--text);
       font-family: 'Zen Kaku Gothic New', sans-serif;
       min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
       position: relative;
     }
 
@@ -60,11 +62,17 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 40px;
-      padding: 40px 20px;
+      gap: 28px;
+      padding: 32px 20px;
       z-index: 1;
       width: 100%;
       max-width: 400px;
+    }
+
+    @media (max-height: 700px) {
+      .container { gap: 16px; padding: 20px 16px; }
+      .spirit-stage { width: 160px; height: 160px; }
+      .orb { width: 88px; height: 88px; }
     }
 
     /* タイトル */
@@ -372,8 +380,12 @@ async function toggleListening() {
 
 async function startListening() {
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // iOS Safari では suspended 状態で始まるため resume が必要
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 2048;
     source = audioCtx.createMediaStreamSource(stream);
@@ -387,7 +399,13 @@ async function startListening() {
 
     analyze();
   } catch(e) {
-    message.textContent = 'マイクをつかってもいいよ、ってきょかしてね';
+    if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+      message.textContent = 'マイクのきょかが必要だよ。設定からきょかしてね';
+    } else if (e.name === 'NotFoundError') {
+      message.textContent = 'マイクがみつからなかったよ';
+    } else {
+      message.textContent = 'マイクをつかってもいいよ、ってきょかしてね';
+    }
   }
 }
 
